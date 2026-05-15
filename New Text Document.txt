@@ -1,0 +1,142 @@
+Create a modern, fully responsive NGO website UI/UX design for an organization named “Better Future for Pakistan”. The design style should follow clean Minimalism with a premium educational-tech feel, soft typography, lots of whitespace, subtle animations, smooth transitions, and a professional color palette inspired by Pakistan (green, white, soft emerald, light gray accents). The interface should feel trustworthy, inspiring, modern, and easy to use for teachers across desktop, tablet, and mobile devices.
+The platform is a Teacher Learning Management System (TLMS) where administrators manage teachers, courses, exams, and certifications.
+Design Requirements:
+1.	Overall Style
+•	Minimalistic modern layout
+•	Fully responsive for mobile, tablet, laptop, and ultra-wide screens
+•	Elegant typography and accessibility-focused UI
+•	Smooth hover effects and micro-interactions
+•	Soft shadows, glassmorphism/light cards where suitable
+•	Professional NGO + EdTech aesthetic
+•	Clean dashboard layouts with proper spacing
+•	Animated statistics counters and subtle scroll animations
+•	Dark/light mode support
+•	High-quality icons and illustrations
+•	Premium UI similar to modern SaaS platforms
+2.	Landing Page Sections
+•	Hero section with inspiring headline:
+“Empowering Teachers for a Better Future in Pakistan”
+•	NGO mission and impact section
+•	Teacher training overview
+•	Featured learning programs
+•	Certification benefits
+•	Statistics section:
+o	Teachers trained
+o	Courses completed
+o	Certificates issued
+•	Testimonials from teachers
+•	Partners/supporters section
+•	Contact & support section
+•	Footer with quick links and social icons
+3.	Authentication System
+Design modern authentication pages:
+•	Admin Login
+•	Teacher Login
+•	Forgot Password
+•	Secure OTP verification UI
+•	Minimal and elegant forms
+•	Animated login illustration
+4.	Admin Dashboard
+Create a powerful admin panel with sidebar navigation and analytics cards.
+Admin Features:
+•	Dashboard overview
+•	Add/Edit/Delete Teachers
+•	Assign Teacher IDs and Passwords
+•	Upload teacher resources:
+o	PDF books
+o	Teaching guide books
+o	Student books
+o	Lecture materials
+•	Manage courses
+•	Manage exams
+•	Track teacher progress
+•	Certificate generation management
+•	Teacher performance analytics
+•	Notification management
+•	Search and filter system
+•	Recent activity panel
+•	Responsive data tables
+5.	Teacher Dashboard
+Create a clean and distraction-free teacher learning interface.
+Teacher Features:
+•	Personalized dashboard
+•	View assigned courses
+•	Read uploaded PDF resources
+•	Course progress tracker
+•	Video/PDF lecture section
+•	MCQs-based exam system
+•	Attempt tracking system
+•	Show remaining attempts out of 3
+•	If teacher fails 3 attempts:
+o	Lock exam access
+o	Show message:
+“Please complete the course again before reattempting.”
+•	Certificate download section after passing
+•	Profile management
+•	Learning timeline/progress bar
+6.	Examination System UI
+Design a modern online exam interface:
+•	Timer
+•	Progress indicator
+•	Multiple-choice questions
+•	Question navigation palette
+•	Auto-submit functionality
+•	Result screen with score analytics
+•	Pass/Fail UI
+•	Attempt counter
+•	Exam history section
+7.	Certificate System
+Design elegant downloadable certificates:
+•	NGO branding
+•	Teacher name
+•	Course name
+•	Completion date
+•	QR verification code
+•	Authorized signatures
+•	Premium printable layout
+8.	Student Management System Button
+Add a prominent feature card/button in admin dashboard:
+“Student Management System”
+(Button only for now)
+Button description:
+Manage:
+•	Student admissions
+•	Attendance
+•	Academic records
+•	Student data management
+9.	UI Components
+Include:
+•	Responsive sidebar
+•	Top navbar
+•	Search bars
+•	Tables
+•	Charts and graphs
+•	Progress circles
+•	Cards
+•	Notification dropdown
+•	File upload UI
+•	Modal windows
+•	Toast notifications
+•	Pagination
+•	Mobile hamburger menu
+10.	Technical Frontend Expectations
+•	Modern React or Next.js frontend
+•	Tailwind CSS styling
+•	Framer Motion animations
+•	Component-based architecture
+•	Clean reusable UI components
+•	Optimized accessibility and responsiveness
+•	SEO-friendly landing page
+•	Smooth page transitions
+11.	Visual Direction
+Use:
+•	Soft gradients
+•	Minimal green highlights
+•	White backgrounds
+•	Rounded corners
+•	Clean dashboard cards
+•	Modern educational illustrations
+•	Elegant empty states
+•	Subtle animated backgrounds
+The final design should feel like a premium NGO-driven educational platform built to improve teacher training and educational quality across Pakistan.
+
