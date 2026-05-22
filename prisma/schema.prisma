@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum ResourceType {
+  PDF_BOOK
+  GUIDE_BOOK
+  STUDENT_BOOK
+  LECTURE_MATERIAL
+}
+
+enum AttemptStatus {
+  PASSED
+  FAILED
+  LOCKED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  LATE
+}
+
+enum FeeStatus {
+  PAID
+  PENDING
+  OVERDUE
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Teacher {
+  id           String           @id @default(cuid())
+  teacherCode  String           @unique
+  fullName     String
+  email        String           @unique
+  cnic         String?          @unique
+  phone        String?
+  qualification String?
+  address      String?
+  username     String           @unique
+  passwordHash String
+  status       UserStatus       @default(ACTIVE)
+  courses      TeacherCourse[]
+  attempts     ExamAttempt[]
+  certificates Certificate[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model Course {
+  id          String           @id @default(cuid())
+  title       String
+  description String?
+  status      UserStatus       @default(ACTIVE)
+  resources   CourseResource[]
+  teachers    TeacherCourse[]
+  exams       Exam[]
+  certificates Certificate[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model TeacherCourse {
+  id          String   @id @default(cuid())
+  teacherId   String
+  courseId    String
+  progress    Int      @default(0)
+  completedAt DateTime?
+  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([teacherId, courseId])
+}
+
+model CourseResource {
+  id         String       @id @default(cuid())
+  courseId   String
+  title      String
+  type       ResourceType
+  fileUrl    String
+  storageKey String?
+  sizeBytes  Int?
+  mimeType   String?
+  course     Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+}
+
+model Exam {
+  id          String        @id @default(cuid())
+  courseId    String
+  title       String
+  durationMin Int           @default(30)
+  passMarks   Int           @default(60)
+  maxAttempts Int           @default(3)
+  course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  mcqs        MCQ[]
+  attempts    ExamAttempt[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model MCQ {
+  id                  String   @id @default(cuid())
+  examId              String
+  question            String
+  options             Json
+  correctOptionIndex  Int
+  marks               Int      @default(1)
+  exam                Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  createdAt           DateTime @default(now())
+}
+
+model ExamAttempt {
+  id               String        @id @default(cuid())
+  teacherId        String
+  examId           String
+  score            Int
+  totalMarks       Int
+  obtainedMarks    Int
+  status           AttemptStatus
+  answers          Json
+  attemptNumber    Int
+  teacher          Teacher       @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  exam             Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
+  certificate      Certificate?
+  createdAt        DateTime      @default(now())
+}
+
+model Certificate {
+  id            String      @id @default(cuid())
+  certificateNo String      @unique
+  teacherId     String
+  courseId      String
+  examAttemptId String      @unique
+  fileUrl       String?
+  qrPayload     String
+  issuedAt      DateTime    @default(now())
+  teacher       Teacher     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  course        Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  examAttempt   ExamAttempt @relation(fields: [examAttemptId], references: [id], onDelete: Cascade)
+}
+
+model Class {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sections  Section[]
+  students  Student[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Section {
+  id        String    @id @default(cuid())
+  name      String
+  classId   String
+  class     Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  students  Student[]
+  createdAt DateTime  @default(now())
+
+  @@unique([name, classId])
+}
+
+model Student {
+  id                   String       @id @default(cuid())
+  fullName             String
+  rollNumber           String
+  fatherName           String
+  classId              String
+  sectionId            String?
+  contact              String?
+  address              String?
+  feeStatus            FeeStatus    @default(PENDING)
+  admissionDate        DateTime
+  attendancePercentage Float        @default(0)
+  class                Class        @relation(fields: [classId], references: [id], onDelete: Restrict)
+  section              Section?     @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  attendance           Attendance[]
+  fees                 Fee[]
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@unique([rollNumber, classId])
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  studentId String
+  classId   String
+  date      DateTime
+  status    AttendanceStatus
+  note      String?
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+
+  @@unique([studentId, date])
+}
+
+model Fee {
+  id          String        @id @default(cuid())
+  studentId   String
+  month       Int
+  year        Int
+  amount      Decimal       @db.Decimal(10, 2)
+  status      FeeStatus     @default(PENDING)
+  dueDate     DateTime?
+  paidAt      DateTime?
+  student     Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  receipt     Receipt?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([studentId, month, year])
+}
+
+model Receipt {
+  id            String        @id @default(cuid())
+  receiptNumber String        @unique
+  feeId         String        @unique
+  amountPaid    Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod @default(CASH)
+  fileUrl       String?
+  fee           Fee           @relation(fields: [feeId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+}

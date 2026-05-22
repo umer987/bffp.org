@@ -9,39 +9,28 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
 import { ArrowLeft } from "lucide-react"
+import { teacherLogin } from "@/lib/auth"
 
 function LoginForm() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError(null)
 
-    setTimeout(() => {
+    try {
+      await teacherLogin(username, password)
+      router.push("/teacher")
+    } catch (err: any) {
+      setError(err?.message || "Invalid username or password.")
+    } finally {
       setLoading(false)
-      const savedTeachers = localStorage.getItem('adminTeachers')
-      let teachers = []
-      if (savedTeachers) {
-        teachers = JSON.parse(savedTeachers)
-      }
-
-      const match = teachers.find((t: any) => t.username === username && t.password === password)
-      
-      if (match) {
-        localStorage.setItem('currentTeacher', JSON.stringify(match))
-        router.push("/teacher")
-      } else if (username === "teacher_1234" && password === "password123") {
-        // Fallback dummy user
-        const dummy = { id: "T-0000", name: "Dummy Teacher", assignedCourses: [] }
-        localStorage.setItem('currentTeacher', JSON.stringify(dummy))
-        router.push("/teacher")
-      } else {
-        alert("Invalid username or password.")
-      }
-    }, 1000)
+    }
   }
 
   return (
@@ -78,6 +67,8 @@ function LoginForm() {
             />
           </div>
 
+          {error && <div className="text-sm text-red-600">{error}</div>}
+
           <Button type="submit" className="w-full mt-6" disabled={loading}>
             {loading ? (
               <span className="flex items-center">
@@ -100,10 +91,8 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 font-sans">
-      {/* Left side - Decorative */}
       <div className="hidden md:flex flex-1 bg-brand-600 relative overflow-hidden items-center justify-center p-12">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
-
         <div className="relative z-10 text-white max-w-lg">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -119,12 +108,10 @@ export default function LoginPage() {
             </p>
           </motion.div>
         </div>
-
         <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-brand-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
         <div className="absolute top-32 -right-32 w-96 h-96 bg-emerald-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
       </div>
 
-      {/* Right side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-md relative">
           <Link href="/" className="absolute -top-16 left-0 text-slate-500 hover:text-slate-900 flex items-center text-sm font-medium transition-colors">

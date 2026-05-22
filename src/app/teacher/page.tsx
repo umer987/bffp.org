@@ -1,70 +1,73 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { BookOpen, PlayCircle, FileText, CheckCircle, Clock, AlertCircle } from "lucide-react"
+import { getMe, getTeacherCourses } from "@/lib/auth"
+
+function openCourseResource(course: any) {
+  const firstResource = course.resources?.[0]
+  if (!firstResource?.fileUrl) return
+  window.open(firstResource.fileUrl, "_blank")
+}
 
 export default function TeacherDashboard() {
+  const router = useRouter()
   const [activeCourses, setActiveCourses] = useState<any[]>([])
   const [teacher, setTeacher] = useState<any>(null)
   const [timeSpent, setTimeSpent] = useState(0)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // 1. Check current teacher
-    const currentTeacherRaw = localStorage.getItem('currentTeacher')
-    if (currentTeacherRaw) {
-      const currentTeacher = JSON.parse(currentTeacherRaw)
-      setTeacher(currentTeacher)
+    const loadData = async () => {
+      try {
+        const meResponse = await getMe()
+        const currentTeacher = meResponse.data
+        setTeacher(currentTeacher)
 
-      const loadTime = () => {
-        const t = parseInt(localStorage.getItem(`timeSpent_${currentTeacher.id}`) || '0', 10)
-        setTimeSpent(t)
+        const trackingKey = `timeSpent_${currentTeacher.id}`
+        const savedTime = parseInt(localStorage.getItem(trackingKey) || "0", 10)
+        setTimeSpent(savedTime)
+
+        const courseResponse = await getTeacherCourses()
+        const assignedCourses = courseResponse.data || []
+
+        const calculatedProgress = Math.min(100, Math.floor(savedTime * 0.25))
+
+        const mappedCourses = assignedCourses.map((item: any, idx: number) => {
+          const course = item.course
+          const colors = [
+            "bg-emerald-100 text-emerald-600",
+            "bg-blue-100 text-blue-600",
+            "bg-amber-100 text-amber-600",
+            "bg-purple-100 text-purple-600"
+          ]
+
+          const totalModules = course.resources?.length || 0
+          return {
+            id: course.id,
+            title: course.title,
+            progress: calculatedProgress,
+            totalModules,
+            completedModules: Math.floor((calculatedProgress / 100) * totalModules),
+            nextModule: course.resources && course.resources.length > 0 ? course.resources[0].title : "No PDF lectures yet",
+            resources: course.resources || [],
+            image: colors[idx % colors.length],
+          }
+        })
+
+        setActiveCourses(mappedCourses)
+      } catch (err) {
+        console.error(err)
+        setError("Unable to load dashboard data. Please sign in again.")
+        router.push("/login")
       }
-      loadTime()
-
-      // Listen for our fast-forward test event
-      window.addEventListener('storage', loadTime)
-
-      // 2. Load all courses created by admin
-      const adminCoursesRaw = localStorage.getItem('adminCourses')
-      let allCourses: any[] = []
-      if (adminCoursesRaw) {
-        allCourses = JSON.parse(adminCoursesRaw)
-      }
-
-      // 3. Filter courses that are assigned to this teacher
-      const assignedTitles = currentTeacher.assignedCourses || []
-      const assignedCourses = allCourses.filter(c => assignedTitles.includes(c.title))
-
-      // Math: 20 minutes = 5% progress => 1 minute = 0.25% progress. Max 100%.
-      const calculatedProgress = Math.min(100, Math.floor(timeSpent * 0.25))
-
-      // Map them to the UI format
-      const mappedCourses = assignedCourses.map((c, idx) => {
-        const colors = [
-          "bg-emerald-100 text-emerald-600",
-          "bg-blue-100 text-blue-600",
-          "bg-amber-100 text-amber-600",
-          "bg-purple-100 text-purple-600"
-        ]
-        
-        return {
-          id: c.id,
-          title: c.title,
-          progress: calculatedProgress,
-          totalModules: c.lectures?.length || 0,
-          completedModules: Math.floor((calculatedProgress / 100) * (c.lectures?.length || 0)),
-          nextModule: c.lectures && c.lectures.length > 0 ? c.lectures[0].title : "No PDF lectures yet",
-          image: colors[idx % colors.length]
-        }
-      })
-
-      setActiveCourses(mappedCourses)
-      
-      return () => window.removeEventListener('storage', loadTime)
     }
-  }, [timeSpent])
+
+    loadData()
+  }, [router])
 
   const upcomingExams = [
     {
@@ -77,6 +80,12 @@ export default function TeacherDashboard() {
     }
   ]
 
+  if (error) {
+    return (
+      <div className="text-sm text-red-600">{error}</div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -85,11 +94,9 @@ export default function TeacherDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column - Active Courses */}
         <div className="lg:col-span-2 space-y-6">
           <h2 className="text-lg font-semibold text-slate-800">In Progress Courses</h2>
-          
+
           {activeCourses.length === 0 ? (
             <div className="p-8 text-center bg-white border border-slate-100 rounded-xl shadow-sm">
               <BookOpen className="h-10 w-10 mx-auto text-slate-300 mb-3" />
@@ -108,7 +115,7 @@ export default function TeacherDashboard() {
                       <div>
                         <h3 className="text-lg font-semibold text-slate-900">{course.title}</h3>
                         <p className="text-sm text-slate-500 flex items-center mt-1">
-                          <PlayCircle className="h-4 w-4 mr-1 flex-shrink-0" /> 
+                          <PlayCircle className="h-4 w-4 mr-1 flex-shrink-0" />
                           <span className="truncate max-w-[200px] sm:max-w-[300px]">Up next: {course.nextModule}</span>
                         </p>
                       </div>
@@ -116,22 +123,26 @@ export default function TeacherDashboard() {
                         {course.progress}% Complete
                       </span>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-slate-500">
                         <span>{course.completedModules} of {course.totalModules} lectures read</span>
                       </div>
                       <div className="w-full bg-slate-100 rounded-full h-2">
-                        <div 
-                          className="bg-brand-500 h-2 rounded-full transition-all duration-500" 
+                        <div
+                          className="bg-brand-500 h-2 rounded-full transition-all duration-500"
                           style={{ width: `${course.progress}%` }}
                         ></div>
                       </div>
                     </div>
-                    
+
                     <div className="mt-6 flex justify-end space-x-3">
                       <Button variant="outline" size="sm">View Resources</Button>
-                      <Button size="sm" disabled={course.totalModules === 0}>
+                      <Button
+                        size="sm"
+                        disabled={course.totalModules === 0}
+                        onClick={() => openCourseResource(course)}
+                      >
                         {course.totalModules === 0 ? "No Content" : "Continue Learning"}
                       </Button>
                     </div>
@@ -142,14 +153,13 @@ export default function TeacherDashboard() {
           )}
         </div>
 
-        {/* Right Column - Upcoming & Stats */}
         <div className="space-y-6">
           <Card className="border-none shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg">Upcoming Exams</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {upcomingExams.map(exam => (
+              {upcomingExams.map((exam) => (
                 <div key={exam.id} className="p-4 border border-border rounded-lg space-y-3">
                   <div className="font-medium text-slate-900">{exam.course}</div>
                   <div className="flex items-center text-sm text-slate-500">
@@ -183,7 +193,6 @@ export default function TeacherDashboard() {
             </CardContent>
           </Card>
         </div>
-
       </div>
     </div>
   )

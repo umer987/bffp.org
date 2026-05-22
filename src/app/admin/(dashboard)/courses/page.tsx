@@ -1,141 +1,156 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { BookOpen, Plus, FileText, Video, Settings, X, Upload, File, Trash2 } from "lucide-react"
+import { addCourseResource, createCourse, getCourses, uploadPdf } from "@/lib/auth"
 
 type Lecture = {
-  id: string;
-  title: string;
-  fileName: string;
+  id: string
+  title: string
+  fileName: string
 }
 
-type Course = {
-  id: number;
-  title: string;
-  enrolled: number;
-  status: string;
-  modules: number;
-  lastUpdated: string;
-  lectures: Lecture[];
+type AdminCourse = {
+  id: string
+  title: string
+  enrolled: number
+  status: string
+  modules: number
+  lastUpdated: string
+  lectures: Lecture[]
 }
 
 export default function CoursesAdminPage() {
-  const [courses, setCourses] = useState<Course[]>([])
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    const savedCourses = localStorage.getItem('adminCourses')
-    if (savedCourses) {
-      const parsed = JSON.parse(savedCourses)
-      const migrated = parsed.map((c: any) => ({
-        ...c,
-        lectures: c.lectures || []
-      }))
-      setCourses(migrated)
-    } else {
-      // Default initial courses
-      const defaultCourses = [
-        {
-          id: 1,
-          title: "Modern Pedagogy & Active Learning",
-          enrolled: 450,
-          status: "Published",
-          modules: 0,
-          lastUpdated: "2 days ago",
-          lectures: []
-        },
-        {
-          id: 2,
-          title: "Digital Literacy for Educators",
-          enrolled: 320,
-          status: "Published",
-          modules: 0,
-          lastUpdated: "1 week ago",
-          lectures: []
-        },
-        {
-          id: 3,
-          title: "Advanced Classroom Psychology",
-          enrolled: 0,
-          status: "Draft",
-          modules: 0,
-          lastUpdated: "Just now",
-          lectures: []
-        }
-      ]
-      setCourses(defaultCourses)
-      localStorage.setItem('adminCourses', JSON.stringify(defaultCourses))
-    }
-  }, [])
-
-  // Save to localStorage whenever courses change
-  useEffect(() => {
-    if (courses.length > 0) {
-      localStorage.setItem('adminCourses', JSON.stringify(courses))
-    }
-  }, [courses])
-
+  const [courses, setCourses] = useState<AdminCourse[]>([])
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [newCourseTitle, setNewCourseTitle] = useState("")
+  const [managingCourseId, setManagingCourseId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const [managingCourseId, setManagingCourseId] = useState<number | null>(null)
-  
-  // Create Course logic
-  const handleCreateCourse = (e: React.FormEvent) => {
+  useEffect(() => {
+    async function loadCourses() {
+      setLoading(true)
+      try {
+        const response = await getCourses()
+        const items = response.data || []
+        setCourses(items.map((course: any) => ({
+          id: course.id,
+          title: course.title,
+          enrolled: course.teachers?.length ?? 0,
+          status: course.status === "ACTIVE" ? "Published" : course.status,
+          modules: course.resources?.length ?? 0,
+          lastUpdated: "Just now",
+          lectures: (course.resources || []).map((resource: any) => ({
+            id: resource.id,
+            title: resource.title,
+            fileName: resource.fileUrl || resource.title,
+          })),
+        })))
+      } catch (err) {
+        console.error(err)
+        setError("Unable to load courses from the backend.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadCourses()
+  }, [])
+
+  const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newCourseTitle.trim()) return
 
-    const newCourse: Course = {
-      id: Date.now(),
-      title: newCourseTitle,
-      enrolled: 0,
-      status: "Draft",
-      modules: 0,
-      lastUpdated: "Just now",
-      lectures: []
-    }
+    setLoading(true)
+    setError(null)
 
-    setCourses([newCourse, ...courses])
-    setIsCreateModalOpen(false)
-    setNewCourseTitle("")
+    try {
+      const response = await createCourse({ title: newCourseTitle.trim(), description: "" })
+      const createdCourse = response.data
+      setCourses((current) => [
+        {
+          id: createdCourse.id,
+          title: createdCourse.title,
+          enrolled: createdCourse.teachers?.length ?? 0,
+          status: createdCourse.status === "ACTIVE" ? "Published" : createdCourse.status,
+          modules: createdCourse.resources?.length ?? 0,
+          lastUpdated: "Just now",
+          lectures: (createdCourse.resources || []).map((resource: any) => ({
+            id: resource.id,
+            title: resource.title,
+            fileName: resource.fileUrl || resource.title,
+          })),
+        },
+        ...courses,
+      ])
+      setNewCourseTitle("")
+      setIsCreateModalOpen(false)
+    } catch (err) {
+      console.error(err)
+      setError("Failed to create course.")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Manage Course logic
-  const managingCourse = courses.find(c => c.id === managingCourseId)
+  const managingCourse = courses.find((course) => course.id === managingCourseId)
 
-  const handleUploadLecture = (courseId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadLecture = async (courseId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
     const file = e.target.files[0]
-    
-    // reset input
     e.target.value = ''
 
-    setCourses(courses.map(course => {
-      if (course.id === courseId) {
-        return {
-          ...course,
-          modules: course.lectures.length + 1,
-          lectures: [
+    setLoading(true)
+    setError(null)
+
+    try {
+      const uploadResponse = await uploadPdf(file)
+      const uploadData = uploadResponse.data
+
+      const resourceResponse = await addCourseResource(courseId, {
+        title: uploadData.title,
+        type: "LECTURE_MATERIAL",
+        fileUrl: uploadData.fileUrl,
+        storageKey: uploadData.storageKey,
+        sizeBytes: uploadData.sizeBytes,
+        mimeType: uploadData.mimeType,
+      })
+
+      const resource = resourceResponse.data
+      setCourses((current) =>
+        current.map((course) => {
+          if (course.id !== courseId) return course
+          const updatedLectures = [
             ...course.lectures,
-            { id: `lec-${Date.now()}`, title: file.name, fileName: file.name }
+            { id: resource.id, title: resource.title, fileName: resource.fileUrl || resource.title },
           ]
-        }
-      }
-      return course
-    }))
+          return {
+            ...course,
+            modules: updatedLectures.length,
+            lectures: updatedLectures,
+          }
+        }),
+      )
+    } catch (err) {
+      console.error(err)
+      setError("Failed to upload the lecture. Please try again.")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleDeleteLecture = (courseId: number, lectureId: string) => {
-    setCourses(courses.map(course => {
+  const handleDeleteLecture = (courseId: string, lectureId: string) => {
+    setCourses((current) => current.map((course) => {
       if (course.id === courseId) {
-        const newLectures = course.lectures.filter(l => l.id !== lectureId)
+        const updatedLectures = course.lectures.filter((lecture) => lecture.id !== lectureId)
         return {
           ...course,
-          modules: newLectures.length,
-          lectures: newLectures
+          modules: updatedLectures.length,
+          lectures: updatedLectures,
         }
       }
       return course
@@ -154,9 +169,11 @@ export default function CoursesAdminPage() {
         </Button>
       </div>
 
+      {error && <div className="text-sm text-red-600">{error}</div>}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {courses.map(course => (
+          {courses.map((course) => (
             <Card key={course.id} className="border-none shadow-sm">
               <CardContent className="p-6">
                 <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -217,7 +234,6 @@ export default function CoursesAdminPage() {
         </div>
       </div>
 
-      {/* Create Course Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
@@ -248,13 +264,12 @@ export default function CoursesAdminPage() {
             </div>
             <div className="p-6 border-t border-border bg-slate-50 flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
-              <Button type="submit" form="create-course-form">Create Course</Button>
+              <Button type="submit" form="create-course-form" disabled={loading}>Create Course</Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Manage Lectures Modal */}
       {managingCourseId && managingCourse && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -285,7 +300,7 @@ export default function CoursesAdminPage() {
                   />
                 </div>
               </div>
-              
+
               {!(managingCourse.lectures && managingCourse.lectures.length > 0) ? (
                 <div className="text-center py-12 text-slate-500 border border-dashed border-slate-200 rounded-lg">
                   <BookOpen className="h-12 w-12 mx-auto mb-3 text-slate-300" />

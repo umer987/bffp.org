@@ -8,25 +8,32 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
 import { Shield, ArrowLeft } from "lucide-react"
+import { adminLogin } from "@/lib/auth"
 
 export default function AdminLoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    
-    // Simulate login
-    setTimeout(() => {
-      setLoading(false)
+    setError(null)
+
+    try {
+      await adminLogin(email, password)
       router.push("/admin")
-    }, 1000)
+    } catch (err: any) {
+      setError(err?.message || "Login failed")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 font-sans p-4 relative overflow-hidden">
-      {/* Decorative background elements */}
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-10"></div>
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-300 rounded-full mix-blend-multiply filter blur-[128px] opacity-10"></div>
@@ -55,25 +62,29 @@ export default function AdminLoginPage() {
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Admin Email</label>
-                  <Input 
-                    type="email" 
-                    placeholder="admin@bffp.org" 
-                    required 
-                    defaultValue="admin@bffp.org"
+                  <Input
+                    type="email"
+                    placeholder="admin@bffp.org"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium text-slate-700">Password</label>
                   </div>
-                  <Input 
-                    type="password" 
-                    placeholder="••••••••" 
-                    required 
-                    defaultValue="password123"
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-                
+
+                {error && <div className="text-sm text-red-600">{error}</div>}
+
                 <Button type="submit" className="w-full mt-6" disabled={loading}>
                   {loading ? (
                     <span className="flex items-center">

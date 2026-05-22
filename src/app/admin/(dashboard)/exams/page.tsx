@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { FileText, Plus, Edit2, Trash2, X, Settings, CheckCircle2, Circle } from "lucide-react"
+import { addExamMcq, createExam, deleteExamMcq, getAdminExams, getCourses } from "@/lib/auth"
 
 type MCQ = {
   id: string;
@@ -14,44 +15,38 @@ type MCQ = {
 }
 
 type Exam = {
-  id: number;
-  course: string;
+  id: string;
+  course: string | { title: string };
   mcqs: MCQ[];
-  duration: string;
-  status: string;
+  durationMin: number;
+  status?: string;
 }
 
 export default function ExamsAdminPage() {
   const [exams, setExams] = useState<Exam[]>([])
+  const [availableCourses, setAvailableCourses] = useState<{ id: string; title: string }[]>([])
 
   useEffect(() => {
-    const savedExams = localStorage.getItem('adminExams')
-    if (savedExams) {
-      setExams(JSON.parse(savedExams))
-    }
-  }, [])
-
-  useEffect(() => {
-    if (exams.length > 0) {
-      localStorage.setItem('adminExams', JSON.stringify(exams))
-    }
-  }, [exams])
-  const [availableCourses, setAvailableCourses] = useState<string[]>([])
-  
-  useEffect(() => {
-    const savedCourses = localStorage.getItem('adminCourses')
-    if (savedCourses) {
+    const loadData = async () => {
       try {
-        const parsed = JSON.parse(savedCourses)
-        const titles = parsed.map((c: any) => c.title)
-        setAvailableCourses(titles)
-      } catch(e) {}
+        const coursesResponse = await getCourses()
+        setAvailableCourses(coursesResponse.data || [])
+
+        const examsResponse = await getAdminExams()
+        setExams(examsResponse.data || [])
+      } catch (error) {
+        console.error(error)
+      }
     }
+
+    loadData()
   }, [])
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState("")
-  const [duration, setDuration] = useState("60 mins")
+  const [duration, setDuration] = useState("60")
+  const [passMarks, setPassMarks] = useState(60)
+  const [maxAttempts, setMaxAttempts] = useState(3)
 
   const [managingExamId, setManagingExamId] = useState<number | null>(null)
 
@@ -60,71 +55,95 @@ export default function ExamsAdminPage() {
   const [newOptions, setNewOptions] = useState(["", "", "", ""])
   const [correctIndex, setCorrectIndex] = useState(0)
 
-  const handleCreateExam = (e: React.FormEvent) => {
+  const handleCreateExam = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedCourse) return alert("Please select a course.")
 
-    const newExam: Exam = {
-      id: Date.now(),
-      course: selectedCourse,
-      mcqs: [],
-      duration: duration,
-      status: "Draft",
-    }
+    try {
+      const response = await createExam({
+        courseId: selectedCourse,
+        title: `Final Exam`,
+        durationMin: Number(duration) || 60,
+        passMarks,
+        maxAttempts,
+        mcqs: [],
+      })
 
-    setExams([newExam, ...exams])
-    setIsCreateModalOpen(false)
-    setSelectedCourse("")
-    setDuration("60 mins")
+      setExams([response.data, ...exams])
+      setIsCreateModalOpen(false)
+      setSelectedCourse("")
+      setDuration("60")
+      setPassMarks(60)
+      setMaxAttempts(3)
+    } catch (error) {
+      console.error(error)
+      alert("Unable to create exam. Please try again.")
+    }
   }
 
-  const handleDeleteExam = (id: number) => {
-    if(confirm("Are you sure you want to remove this exam?")) {
-      setExams(exams.filter(e => e.id !== id))
+  const handleDeleteExam = (id: string) => {
+    if (confirm("Are you sure you want to remove this exam?")) {
+      setExams(exams.filter((e) => e.id !== id))
     }
   }
 
-  const handleAddMCQ = (examId: number) => {
-    if (!newQuestion.trim() || newOptions.some(opt => !opt.trim())) {
+  const handleAddMCQ = async (examId: string) => {
+    if (!newQuestion.trim() || newOptions.some((opt) => !opt.trim())) {
       return alert("Please fill out the question and all 4 options.")
     }
 
-    const newMCQ: MCQ = {
-      id: `mcq-${Date.now()}`,
-      question: newQuestion,
-      options: [...newOptions],
-      correctOptionIndex: correctIndex
+    try {
+      const response = await addExamMcq(examId, {
+        question: newQuestion,
+        options: [...newOptions],
+        correctOptionIndex: correctIndex,
+        marks: 1,
+      })
+
+      const createdMcq = response.data
+
+      setExams((current) =>
+        current.map((exam) => {
+          if (exam.id === examId) {
+            return {
+              ...exam,
+              status: "Active",
+              mcqs: [...exam.mcqs, createdMcq],
+            }
+          }
+          return exam
+        }),
+      )
+
+      setNewQuestion("")
+      setNewOptions(["", "", "", ""])
+      setCorrectIndex(0)
+    } catch (error) {
+      console.error(error)
+      alert("Unable to save question. Please try again.")
     }
-
-    setExams(exams.map(exam => {
-      if (exam.id === examId) {
-        return {
-          ...exam,
-          status: "Active", // automatically mark active if it has questions
-          mcqs: [...exam.mcqs, newMCQ]
-        }
-      }
-      return exam
-    }))
-
-    // Reset MCQ form
-    setNewQuestion("")
-    setNewOptions(["", "", "", ""])
-    setCorrectIndex(0)
   }
 
-  const handleDeleteMCQ = (examId: number, mcqId: string) => {
-    setExams(exams.map(exam => {
-      if (exam.id === examId) {
-        const remaining = exam.mcqs.filter(m => m.id !== mcqId)
-        return {
-          ...exam,
-          status: remaining.length === 0 ? "Draft" : "Active",
-          mcqs: remaining
-        }
-      }
-      return exam
-    }))
+  const handleDeleteMCQ = async (examId: string, mcqId: string) => {
+    try {
+      await deleteExamMcq(examId, mcqId)
+      setExams((current) =>
+        current.map((exam) => {
+          if (exam.id === examId) {
+            const remaining = exam.mcqs.filter((m) => m.id !== mcqId)
+            return {
+              ...exam,
+              status: remaining.length === 0 ? "Draft" : "Active",
+              mcqs: remaining,
+            }
+          }
+          return exam
+        }),
+      )
+    } catch (error) {
+      console.error(error)
+      alert("Unable to remove question. Please try again.")
+    }
   }
 
   const updateOption = (index: number, value: string) => {
@@ -173,16 +192,18 @@ export default function ExamsAdminPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <FileText className="h-4 w-4 mr-2 text-brand-600" />
-                          <span className="font-medium text-slate-900">{exam.course} Final Exam</span>
+                          <span className="font-medium text-slate-900">{typeof exam.course === 'string' ? exam.course : exam.course?.title} Final Exam</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-slate-600">{exam.mcqs.length} MCQs</td>
-                      <td className="px-6 py-4 text-slate-600">{exam.duration}</td>
+                      <td className="px-6 py-4 text-slate-600">{exam.durationMin} min</td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-block ${
-                          exam.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                          (exam.status ?? (exam.mcqs.length > 0 ? 'Active' : 'Draft')) === 'Active'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-amber-100 text-amber-700'
                         }`}>
-                          {exam.status}
+                          {exam.status ?? (exam.mcqs.length > 0 ? 'Active' : 'Draft')}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -237,7 +258,9 @@ export default function ExamsAdminPage() {
                     required
                   >
                     <option value="" disabled>Select a course...</option>
-                    {availableCourses.map((c, i) => <option key={i} value={c}>{c}</option>)}
+                    {availableCourses.map((course) => (
+                      <option key={course.id} value={course.id}>{course.title}</option>
+                    ))}
                   </select>
                   {availableCourses.length === 0 && (
                     <p className="text-xs text-amber-600 mt-1">No courses available. Please create a course first.</p>
@@ -245,12 +268,49 @@ export default function ExamsAdminPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Exam Duration</label>
+                  <label className="text-sm font-medium text-slate-700">Exam Title</label>
+                  <Input
+                    placeholder="Final Exam"
+                    value={
+                      availableCourses.find((course) => course.id === selectedCourse)?.title
+                        ? `${availableCourses.find((course) => course.id === selectedCourse)?.title} Final Exam`
+                        : "Final Exam"
+                    }
+                    readOnly
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Duration (minutes)</label>
+                    <Input 
+                      type="number"
+                      placeholder="60"
+                      required 
+                      value={duration} 
+                      onChange={e => setDuration(e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Pass Marks (%)</label>
+                    <Input 
+                      type="number"
+                      placeholder="60" 
+                      required 
+                      value={passMarks} 
+                      onChange={e => setPassMarks(Number(e.target.value))} 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Max Attempts</label>
                   <Input 
-                    placeholder="e.g. 60 mins" 
+                    type="number"
+                    placeholder="3" 
                     required 
-                    value={duration} 
-                    onChange={e => setDuration(e.target.value)} 
+                    value={maxAttempts} 
+                    onChange={e => setMaxAttempts(Number(e.target.value))} 
                   />
                 </div>
               </form>
@@ -274,7 +334,7 @@ export default function ExamsAdminPage() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">MCQ Builder: {managingExam.course}</h2>
+                <h2 className="text-xl font-bold text-slate-900">MCQ Builder: {typeof managingExam.course === 'string' ? managingExam.course : managingExam.course?.title}</h2>
                 <p className="text-sm text-slate-500">Add multiple choice questions for this exam.</p>
               </div>
               <button 

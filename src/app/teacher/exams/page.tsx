@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { FileText, Clock, AlertCircle, CheckCircle, Lock, X, ChevronRight, ChevronLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { getMe, getTeacherExams } from "@/lib/auth"
 
 type TeacherExamStats = {
   [examId: string]: {
@@ -27,45 +28,39 @@ export default function ExamsPage() {
   const [examResult, setExamResult] = useState<any>(null) // Used to show immediate results
 
   useEffect(() => {
-    // 1. Check current teacher
-    const currentTeacherRaw = localStorage.getItem('currentTeacher')
-    if (!currentTeacherRaw) {
-      router.push("/login")
-      return
-    }
+    const loadData = async () => {
+      try {
+        const meResponse = await getMe()
+        const currentTeacher = meResponse.data
+        setTeacher(currentTeacher)
 
-    const currentTeacher = JSON.parse(currentTeacherRaw)
-    setTeacher(currentTeacher)
+        const examResponse = await getTeacherExams()
+        const teacherExams = examResponse.data || []
+        setExams(teacherExams)
 
-    // 2. Load assigned admin exams
-    const adminExamsRaw = localStorage.getItem('adminExams')
-    let allExams: any[] = []
-    if (adminExamsRaw) {
-      allExams = JSON.parse(adminExamsRaw)
-    }
-
-    const assignedTitles = currentTeacher.assignedCourses || []
-    const teacherAssignedExams = allExams.filter(e => assignedTitles.includes(e.course))
-    setExams(teacherAssignedExams)
-
-    // 3. Load stats
-    const statsKey = `teacherExamStats_${currentTeacher.id}`
-    const savedStats = localStorage.getItem(statsKey)
-    if (savedStats) {
-      setStats(JSON.parse(savedStats))
-    } else {
-      // Initialize stats for new exams
-      const initialStats: TeacherExamStats = {}
-      teacherAssignedExams.forEach(e => {
-        initialStats[e.id] = {
-          status: 'Available',
-          attemptsRemaining: 3,
-          score: null
+        const statsKey = `teacherExamStats_${currentTeacher.id}`
+        const savedStats = localStorage.getItem(statsKey)
+        if (savedStats) {
+          setStats(JSON.parse(savedStats))
+        } else {
+          const initialStats: TeacherExamStats = {}
+          teacherExams.forEach((e: any) => {
+            initialStats[e.id] = {
+              status: 'Available',
+              attemptsRemaining: 3,
+              score: null,
+            }
+          })
+          setStats(initialStats)
+          localStorage.setItem(statsKey, JSON.stringify(initialStats))
         }
-      })
-      setStats(initialStats)
-      localStorage.setItem(statsKey, JSON.stringify(initialStats))
+      } catch (err) {
+        console.error(err)
+        router.push("/login")
+      }
     }
+
+    loadData()
   }, [router])
 
   const updateStats = (newStats: TeacherExamStats) => {
@@ -170,7 +165,7 @@ export default function ExamsPage() {
                     </div>
                     
                     <div>
-                      <h3 className="text-lg font-semibold text-slate-900">{exam.course} Final Exam</h3>
+                      <h3 className="text-lg font-semibold text-slate-900">{typeof exam.course === 'string' ? exam.course : exam.course?.title} Final Exam</h3>
                       <div className="flex flex-wrap items-center mt-2 text-sm text-slate-500 gap-x-4 gap-y-2">
                         <span className="flex items-center"><Clock className="h-4 w-4 mr-1" /> {exam.duration}</span>
                         <span className="flex items-center"><FileText className="h-4 w-4 mr-1" /> {totalQuestions} Questions</span>
@@ -230,7 +225,7 @@ export default function ExamsPage() {
         <div className="fixed inset-0 z-[100] bg-slate-50 flex flex-col">
           <header className="h-16 border-b border-border bg-white flex items-center justify-between px-6 shrink-0 shadow-sm">
             <div>
-              <h2 className="font-bold text-slate-900">{activeExam.course} - Final Exam</h2>
+              <h2 className="font-bold text-slate-900">{typeof activeExam.course === 'string' ? activeExam.course : activeExam.course?.title} - Final Exam</h2>
               <p className="text-xs text-slate-500">Pass mark: 60%</p>
             </div>
             {!examResult && (

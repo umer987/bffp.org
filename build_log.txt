@@ -1,0 +1,23 @@
+
+> temp_app@0.1.0 build
+> next build
+
+▲ Next.js 16.2.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 13.5s
+  Running TypeScript ...
+Failed to type check.
+
+./src/app/admin/(dashboard)/teachers/page.tsx:137:25
+Type error: Property 'username' does not exist on type 'Teacher'.
+
+  [90m135 |[0m     setSchool(teacher.address || [32m""[0m)
+  [90m136 |[0m     setSelectedCourses((teacher.courses || []).map((item) => item.course.id))
+[31m[1m>[0m [90m137 |[0m     setUsername(teacher.username || [32m`teacher_[0m${teacher.id[32m}`[0m)
+  [90m    |[0m                         [31m[1m^[0m
+  [90m138 |[0m     setPassword([32m""[0m)
+  [90m139 |[0m     setIsModalOpen([36mtrue[0m)
+  [90m140 |[0m   }
+Next.js build worker exited with code: 1 and signal: null

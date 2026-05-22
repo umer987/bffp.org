@@ -1,78 +1,79 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { BookOpen, PlayCircle, Clock, BookText } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { getMe, getTeacherCourses } from "@/lib/auth"
 
 export default function MyCoursesPage() {
   const router = useRouter()
   const [courses, setCourses] = useState<any[]>([])
   const [teacher, setTeacher] = useState<any>(null)
   const [timeSpent, setTimeSpent] = useState(0)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // 1. Check current teacher
-    const currentTeacherRaw = localStorage.getItem('currentTeacher')
-    if (!currentTeacherRaw) {
-      router.push("/login")
-      return
-    }
+    const loadData = async () => {
+      try {
+        const meResponse = await getMe()
+        const currentTeacher = meResponse.data
+        setTeacher(currentTeacher)
 
-    const currentTeacher = JSON.parse(currentTeacherRaw)
-    setTeacher(currentTeacher)
+        const trackingKey = `timeSpent_${currentTeacher.id}`
+        const savedTime = parseInt(localStorage.getItem(trackingKey) || "0", 10)
+        setTimeSpent(savedTime)
 
-    const loadTime = () => {
-      const t = parseInt(localStorage.getItem(`timeSpent_${currentTeacher.id}`) || '0', 10)
-      setTimeSpent(t)
-    }
-    loadTime()
+        const courseResponse = await getTeacherCourses()
+        const assignedCourses = courseResponse.data || []
 
-    // Listen for our fast-forward test event
-    window.addEventListener('storage', loadTime)
+        const calculatedProgress = Math.min(100, Math.floor(savedTime * 0.25))
 
-    // 2. Load all courses created by admin
-    const adminCoursesRaw = localStorage.getItem('adminCourses')
-    let allCourses: any[] = []
-    if (adminCoursesRaw) {
-      allCourses = JSON.parse(adminCoursesRaw)
-    }
+        const mappedCourses = assignedCourses.map((item: any, idx: number) => {
+          const course = item.course
+          const colors = [
+            "bg-emerald-100 text-emerald-600",
+            "bg-blue-100 text-blue-600",
+            "bg-amber-100 text-amber-600",
+            "bg-purple-100 text-purple-600"
+          ]
 
-    // 3. Filter courses that are assigned to this teacher
-    const assignedTitles = currentTeacher.assignedCourses || []
-    const assignedCourses = allCourses.filter(c => assignedTitles.includes(c.title))
+          const totalModules = course.resources?.length || 0
+          return {
+            id: course.id,
+            title: course.title,
+            description: `This course contains ${totalModules} PDF lectures.`,
+            progress: calculatedProgress,
+            totalModules,
+            completedModules: Math.floor((calculatedProgress / 100) * totalModules),
+            resources: course.resources || [],
+            duration: "Self Paced",
+            status: calculatedProgress === 100 ? "Completed" : calculatedProgress > 0 ? "In Progress" : "Not Started",
+            imageClass: colors[idx % colors.length],
+          }
+        })
 
-    // Math: 20 minutes = 5% progress => 1 minute = 0.25% progress. Max 100%.
-    const calculatedProgress = Math.min(100, Math.floor(timeSpent * 0.25))
-
-    // Map them to the UI format
-    const mappedCourses = assignedCourses.map((c, idx) => {
-      // Rotate colors for aesthetics
-      const colors = [
-        "bg-emerald-100 text-emerald-600",
-        "bg-blue-100 text-blue-600",
-        "bg-amber-100 text-amber-600",
-        "bg-purple-100 text-purple-600"
-      ]
-      
-      return {
-        id: c.id,
-        title: c.title,
-        description: `This course contains ${c.lectures?.length || 0} PDF lectures.`,
-        progress: calculatedProgress,
-        totalModules: c.lectures?.length || 0,
-        completedModules: Math.floor((calculatedProgress / 100) * (c.lectures?.length || 0)),
-        duration: "Self Paced",
-        status: calculatedProgress === 100 ? "Completed" : calculatedProgress > 0 ? "In Progress" : "Not Started",
-        imageClass: colors[idx % colors.length]
+        setCourses(mappedCourses)
+      } catch (err) {
+        console.error(err)
+        setError("Unable to load courses. Please sign in again.")
+        router.push("/login")
       }
-    })
+    }
 
-    setCourses(mappedCourses)
-    
-    return () => window.removeEventListener('storage', loadTime)
-  }, [router, timeSpent])
+    loadData()
+  }, [router])
+
+  function openCourseResource(course: any) {
+    const first = course.resources?.[0]
+    if (!first?.fileUrl) return
+    window.open(first.fileUrl, "_blank")
+  }
+
+  if (error) {
+    return <div className="text-sm text-red-600">{error}</div>
+  }
 
   if (!teacher) return null
 
@@ -80,7 +81,7 @@ export default function MyCoursesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">My Courses</h1>
-        <p className="text-sm text-slate-500">Welcome, {teacher.name}. View and manage your assigned training modules.</p>
+        <p className="text-sm text-slate-500">Welcome, {teacher.name || teacher.fullName || teacher.username}. View and manage your assigned training modules.</p>
       </div>
 
       {courses.length === 0 ? (
@@ -99,11 +100,9 @@ export default function MyCoursesPage() {
                   {course.status}
                 </div>
               </div>
-              
               <CardContent className="flex-1 p-6 flex flex-col">
                 <h3 className="text-lg font-semibold text-slate-900 mb-2 line-clamp-1">{course.title}</h3>
                 <p className="text-sm text-slate-500 mb-4 line-clamp-2 flex-1">{course.description}</p>
-                
                 <div className="flex items-center text-xs text-slate-500 mb-4 space-x-4">
                   <span className="flex items-center"><BookText className="h-4 w-4 mr-1" /> {course.totalModules} Lectures</span>
                   <span className="flex items-center"><Clock className="h-4 w-4 mr-1" /> {course.duration}</span>
@@ -116,7 +115,7 @@ export default function MyCoursesPage() {
                       <span className="text-brand-600">{course.progress}%</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2">
-                      <div 
+                      <div
                         className={`h-2 rounded-full transition-all duration-500 ${course.progress === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`}
                         style={{ width: `${course.progress}%` }}
                       ></div>
@@ -128,7 +127,7 @@ export default function MyCoursesPage() {
                   {course.progress === 100 ? (
                     <Button variant="outline" className="w-full">Review Course</Button>
                   ) : course.progress > 0 ? (
-                    <Button className="w-full">
+                    <Button className="w-full" onClick={() => openCourseResource(course)}>
                       <PlayCircle className="mr-2 h-4 w-4" /> Continue Learning
                     </Button>
                   ) : (
