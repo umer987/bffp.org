@@ -1,28 +1,74 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
-import { Award, Download, ExternalLink, Calendar } from "lucide-react"
+import { Award, Download, ExternalLink, Calendar, FileSearch } from "lucide-react"
+import { getJson, apiFetchBlob } from "@/lib/api"
+
+type TeacherCertificate = {
+  id: string
+  certificateNo: string
+  issuedAt: string
+  course: {
+    title: string
+  }
+}
 
 export default function CertificatesPage() {
-  const certificates = [
-    {
-      id: "CERT-09283",
-      course: "Basic Child Psychology",
-      issueDate: "September 5, 2024",
-      score: "92%",
-      validity: "Lifetime",
-      imageClass: "bg-gradient-to-br from-brand-600 to-brand-800"
-    },
-    {
-      id: "CERT-08112",
-      course: "Introduction to Special Education",
-      issueDate: "August 12, 2024",
-      score: "88%",
-      validity: "Lifetime",
-      imageClass: "bg-gradient-to-br from-blue-600 to-blue-800"
+  const [certificates, setCertificates] = useState<TeacherCertificate[]>([])
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadCertificates() {
+      try {
+        const result = await getJson<{ success: boolean; data: TeacherCertificate[] }>("/api/teacher/certificate")
+        setCertificates(result.data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to load certificates")
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+
+    loadCertificates()
+  }, [])
+
+  useEffect(() => {
+    if (certificates.length === 0) return
+
+    let active = true
+    const objectUrls: string[] = []
+
+    async function loadImages() {
+      const urls: Record<string, string> = {}
+      await Promise.all(
+        certificates.map(async (cert) => {
+          try {
+            const blob = await apiFetchBlob(`/api/certificate/image/${cert.id}`)
+            const url = URL.createObjectURL(blob)
+            urls[cert.id] = url
+            objectUrls.push(url)
+          } catch (error) {
+            console.error("Certificate image fetch failed", cert.id, error)
+          }
+        }),
+      )
+
+      if (active) {
+        setImageUrls(urls)
+      }
+    }
+
+    loadImages()
+
+    return () => {
+      active = false
+      objectUrls.forEach(URL.revokeObjectURL)
+    }
+  }, [certificates])
 
   return (
     <div className="space-y-6">
@@ -33,58 +79,69 @@ export default function CertificatesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {certificates.map((cert) => (
-          <Card key={cert.id} className="border-none shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
-            {/* Visual Certificate Preview */}
-            <div className={`h-48 ${cert.imageClass} p-6 flex flex-col justify-between text-white relative`}>
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
-              <div className="relative z-10 flex justify-between items-start">
-                <Award className="h-8 w-8 text-brand-100" />
-                <span className="text-xs font-mono bg-white/20 px-2 py-1 rounded backdrop-blur-sm">
-                  {cert.id}
-                </span>
-              </div>
-              <div className="relative z-10">
-                <p className="text-xs text-brand-100 uppercase tracking-wider mb-1">Certificate of Completion</p>
-                <h3 className="font-semibold text-lg leading-tight line-clamp-2">{cert.course}</h3>
-              </div>
+      {loading ? (
+        <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-slate-500">Loading certificates…</div>
+      ) : error ? (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center text-red-700">{error}</div>
+      ) : certificates.length === 0 ? (
+        <Card className="border-dashed border-2 border-slate-200 shadow-none bg-slate-50 p-8 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400">
+              <Award className="h-8 w-8" />
             </div>
-            
-            <CardContent className="p-5">
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500 flex items-center"><Calendar className="h-4 w-4 mr-2" /> Issued</span>
-                  <span className="font-medium text-slate-900">{cert.issueDate}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Score</span>
-                  <span className="font-medium text-slate-900">{cert.score}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="w-full text-brand-700 border-brand-200 hover:bg-brand-50">
-                  <ExternalLink className="h-4 w-4 mr-2" /> Verify
-                </Button>
-                <Button className="w-full">
-                  <Download className="h-4 w-4 mr-2" /> PDF
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-
-        {/* Empty State / Keep Learning Card */}
-        <Card className="border-dashed border-2 border-slate-200 shadow-none bg-slate-50 flex flex-col items-center justify-center p-8 text-center h-full min-h-[300px]">
-          <div className="h-16 w-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4 text-slate-400">
-            <Award className="h-8 w-8" />
+            <div>
+              <h2 className="text-lg font-semibold text-slate-700">No certificates yet</h2>
+              <p className="text-sm text-slate-500">Pass an exam to generate your certificate automatically.</p>
+            </div>
           </div>
-          <h3 className="text-lg font-semibold text-slate-700 mb-2">Earn More Certificates</h3>
-          <p className="text-sm text-slate-500 mb-6">Complete more courses and pass exams to expand your portfolio.</p>
-          <Button variant="outline" className="bg-white">Browse Courses</Button>
         </Card>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {certificates.map((cert) => (
+            <Card key={cert.id} className="border-none shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
+              <img
+                src={imageUrls[cert.id] ?? "/certificate_final.png"}
+                alt={`Certificate ${cert.certificateNo}`}
+                className="h-56 w-full object-cover"
+              />
+              <CardContent className="p-5">
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500 flex items-center"><Calendar className="h-4 w-4 mr-2" /> Issued</span>
+                    <span className="font-medium text-slate-900">{new Date(cert.issuedAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}</span>
+                  </div>
+                  <div className="text-sm">
+                    <p className="text-slate-500">Certificate ID</p>
+                    <p className="font-medium text-slate-900">{cert.certificateNo}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <a
+                    href={imageUrls[cert.id] ?? `/api/certificate/image/${cert.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <FileSearch className="mr-2 h-4 w-4" /> Preview
+                  </a>
+                  <a
+                    href={imageUrls[cert.id] ?? `/api/certificate/image/${cert.id}`}
+                    download={`certificate-${cert.certificateNo}.png`}
+                    className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                  >
+                    <Download className="mr-2 h-4 w-4" /> Download
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

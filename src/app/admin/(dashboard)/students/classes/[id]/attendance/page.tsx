@@ -8,7 +8,7 @@ import {
   FileWarning, ArrowLeft, Download
 } from "lucide-react"
 import Link from "next/link"
-import { getStudents, saveAttendance } from "@/lib/auth"
+import { getStudents, saveAttendance, getClassAttendance } from "@/lib/auth"
 
 type AttendanceStudent = {
   id: string
@@ -17,22 +17,33 @@ type AttendanceStudent = {
   feeStatus?: string | null
 }
 
+type AttendanceRecord = {
+  studentId: string
+  date: string
+  status: string
+}
+
 export default function ClassAttendancePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params)
   const [students, setStudents] = useState<AttendanceStudent[]>([])
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [attendance, setAttendance] = useState<Record<string, string>>({})
+  const [allAttendanceRecords, setAllAttendanceRecords] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
-    const loadStudents = async () => {
+    const loadData = async () => {
       setLoading(true)
       try {
-        const response = await getStudents(id)
-        const items = response.data || []
+        const [studentsResponse, attendanceResponse] = await Promise.all([
+          getStudents(id),
+          getClassAttendance(id)
+        ])
+        
+        const items = studentsResponse.data || []
         const normalizedStudents = items.map((student: any) => ({
           id: student.id,
           fullName: student.fullName,
@@ -40,26 +51,45 @@ export default function ClassAttendancePage({ params }: { params: Promise<{ id: 
           feeStatus: student.feeStatus,
         }))
         setStudents(normalizedStudents)
+        
+        const attendanceRecords: AttendanceRecord[] = (attendanceResponse.data || []).map((rec: any) => ({
+          studentId: rec.studentId,
+          date: rec.date,
+          status: rec.status,
+        }))
+        setAllAttendanceRecords(attendanceRecords)
       } catch (err) {
         console.error(err)
-        setError("Failed to load class students.")
+        setError("Failed to load class data.")
       } finally {
         setLoading(false)
       }
     }
 
-    loadStudents()
+    loadData()
   }, [id])
 
+  // Update attendance state when date changes
   useEffect(() => {
-    if (students.length > 0 && Object.keys(attendance).length === 0) {
-      const initialAttendance: Record<string, string> = {}
-      students.forEach((student) => {
-        initialAttendance[student.id] = "PRESENT"
-      })
-      setAttendance(initialAttendance)
-    }
-  }, [students, attendance])
+    const dateAttendance: Record<string, string> = {}
+    
+    // Normalize dates for comparison (remove time portion if present)
+    const recordsForDate = allAttendanceRecords.filter(rec => {
+      const recDate = rec.date.split('T')[0]
+      return recDate === selectedDate
+    })
+    
+    console.log("Selected date:", selectedDate)
+    console.log("All records:", allAttendanceRecords)
+    console.log("Records for date:", recordsForDate)
+    
+    students.forEach((student) => {
+      const record = recordsForDate.find(r => r.studentId === student.id)
+      dateAttendance[student.id] = record?.status || "PRESENT"
+    })
+    
+    setAttendance(dateAttendance)
+  }, [selectedDate, allAttendanceRecords, students])
 
   const markAll = (status: string) => {
     const newAtt: Record<string, string> = {}

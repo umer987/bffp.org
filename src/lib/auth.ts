@@ -187,3 +187,11 @@ export function addExamMcq(examId: string, payload: {
 export function deleteExamMcq(examId: string, mcqId: string) {
   return apiFetch<void>(`/api/exams/${examId}/mcqs/${mcqId}`, { method: "DELETE" })
 }
+
+export function deleteExam(examId: string) {
+  return apiFetch<void>(`/api/exams/${examId}`, { method: "DELETE" })
+}
+
+export function getClassAttendance(classId: string) {
+  return getJson<AuthResponse<any[]>>(`/api/attendance/class/${classId}`)
+}

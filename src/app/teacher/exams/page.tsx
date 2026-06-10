@@ -26,6 +26,7 @@ export default function ExamsPage() {
   const [currentQIndex, setCurrentQIndex] = useState(0)
   const [answers, setAnswers] = useState<{ [qId: string]: number }>({})
   const [examResult, setExamResult] = useState<any>(null) // Used to show immediate results
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -77,48 +78,51 @@ export default function ExamsPage() {
     setExamResult(null)
   }
 
-  const submitExam = () => {
+  const submitExam = async () => {
     if (!activeExam || !teacher) return
+    setSubmitError(null)
 
-    let correctCount = 0
-    activeExam.mcqs.forEach((mcq: any) => {
-      if (answers[mcq.id] === mcq.correctOptionIndex) {
-        correctCount++
+    try {
+      const response = await fetch("/api/exams/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ examId: activeExam.id, answers }),
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to submit exam")
       }
-    })
 
-    const scorePercentage = Math.round((correctCount / activeExam.mcqs.length) * 100)
-    const passed = scorePercentage >= 60
+      const { attempt, certificate, attemptsRemaining } = result.data
+      const passed = attempt.status === "PASSED"
+      const locked = attempt.status === "LOCKED"
 
-    const currentStat = stats[activeExam.id] || { status: 'Available', attemptsRemaining: 3, score: null }
-    const attemptsLeft = passed ? currentStat.attemptsRemaining : currentStat.attemptsRemaining - 1
-    
-    let newStatus = passed ? 'Passed' : 'Failed'
-    if (!passed && attemptsLeft <= 0) {
-      newStatus = 'Locked'
-      
-      // Reset course progress logic
-      localStorage.setItem(`timeSpent_${teacher.id}`, "0")
-      // Force UI update across tabs
-      window.dispatchEvent(new Event('storage')) 
-    }
-
-    const newStats = {
-      ...stats,
-      [activeExam.id]: {
-        status: newStatus as 'Passed' | 'Failed' | 'Locked',
-        attemptsRemaining: attemptsLeft,
-        score: scorePercentage
+      const newStats = {
+        ...stats,
+        [activeExam.id]: {
+          status: passed ? 'Passed' : locked ? 'Locked' : 'Failed',
+          attemptsRemaining,
+          score: attempt.score,
+        },
       }
+
+      updateStats(newStats)
+      setExamResult({
+        score: attempt.score,
+        passed,
+        locked,
+        certificate,
+      })
+
+      if (locked) {
+        localStorage.setItem(`timeSpent_${teacher.id}`, "0")
+        window.dispatchEvent(new Event('storage'))
+      }
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Unable to submit exam")
+      console.error(err)
     }
-
-    updateStats(newStats)
-
-    setExamResult({
-      score: scorePercentage,
-      passed,
-      locked: newStatus === 'Locked'
-    })
   }
 
   const closeRunner = () => {
@@ -201,8 +205,8 @@ export default function ExamsPage() {
                         </Button>
                       )}
                       {stat.status === 'Passed' && (
-                        <Button variant="outline" className="w-full sm:w-auto border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-                          View Results
+                        <Button variant="outline" onClick={() => startExam(exam)} className="w-full sm:w-auto border-emerald-200 text-emerald-700 hover:bg-emerald-50" disabled={totalQuestions === 0}>
+                          Retake Exam
                         </Button>
                       )}
                       {stat.status === 'Locked' && (
@@ -236,6 +240,11 @@ export default function ExamsPage() {
           </header>
 
           <main className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center relative">
+            {submitError && (
+              <div className="max-w-3xl w-full mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {submitError}
+              </div>
+            )}
             {examResult ? (
               <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-slate-100 text-center animate-in fade-in zoom-in duration-300">
                 {examResult.passed ? (

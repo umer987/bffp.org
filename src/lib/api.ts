@@ -73,3 +73,25 @@ export function getJson<T = any>(path: string) {
 export function postJson<T = any>(path: string, body: any) {
   return apiFetch<T>(path, { method: "POST", body: JSON.stringify(body) })
 }
+
+export async function apiFetchBlob(path: string, options: RequestInit = {}) {
+  const response = await fetch(path, {
+    credentials: "include",
+    ...options,
+    headers: {
+      ...(buildHeaders(options.headers, options.body) as Record<string, string>),
+      ...(getStoredAuthToken() ? { Authorization: `Bearer ${getStoredAuthToken()}` } : {}),
+    },
+  })
+
+  if (!response.ok) {
+    const data = await parseJson(response)
+    const message = typeof data === "object" && data !== null
+      ? data.error || data.message || JSON.stringify(data)
+      : response.statusText
+    const issues = typeof data === "object" && data !== null && data.issues ? ` ${JSON.stringify(data.issues)}` : ""
+    throw new Error(`${message}${issues}`)
+  }
+
+  return response.blob()
+}

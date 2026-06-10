@@ -24,25 +24,25 @@ const Youtube = ({ className }: { className?: string }) => (
 
 export function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-300 py-12">
+    <footer className="bg-[#047857] text-white font-semibold py-12">
       <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
         <div className="col-span-1 md:col-span-2">
           <Link href="/" className="flex items-center mb-6 bg-white/10 p-2 rounded-xl w-fit">
             <Image src="/logo.png" alt="BFFP Logo" width={240} height={80} className="h-16 w-auto" />
           </Link>
-          <p className="text-sm text-slate-400 max-w-sm mb-6">
+          <p className="text-sm text-white max-w-sm mb-6 font-semibold">
             Empowering Teachers for a Better Future for Pakistan. A premium educational platform dedicated to improving teacher training and educational quality.
           </p>
           <div className="flex space-x-4">
-            <a href="https://www.facebook.com/BFFPakistan/?_rdc=1&_rdr#" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-brand-400 transition-colors">
+            <a href="https://www.facebook.com/BFFPakistan/?_rdc=1&_rdr#" target="_blank" rel="noopener noreferrer" className="text-white hover:text-slate-200 transition-colors font-semibold">
               <span className="sr-only">Facebook</span>
               <Facebook className="w-5 h-5" />
             </a>
-            <a href="https://www.instagram.com/betterfutureforpakistan/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-brand-400 transition-colors">
+            <a href="https://www.instagram.com/betterfutureforpakistan/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-slate-200 transition-colors font-semibold">
               <span className="sr-only">Instagram</span>
               <Instagram className="w-5 h-5" />
             </a>
-            <a href="https://www.youtube.com/@BFF-Pakistan" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-brand-400 transition-colors">
+            <a href="https://www.youtube.com/@BFF-Pakistan" target="_blank" rel="noopener noreferrer" className="text-white hover:text-slate-200 transition-colors font-semibold">
               <span className="sr-only">YouTube</span>
               <Youtube className="w-5 h-5" />
             </a>
@@ -50,29 +50,29 @@ export function Footer() {
         </div>
         
         <div>
-          <h4 className="text-white font-semibold mb-4">Quick Links</h4>
-          <ul className="space-y-2 text-sm">
-            <li><Link href="#mission" className="hover:text-brand-400 transition-colors">Our Mission</Link></li>
-            <li><Link href="#programs" className="hover:text-brand-400 transition-colors">Programs</Link></li>
-            <li><Link href="#impact" className="hover:text-brand-400 transition-colors">Impact</Link></li>
-            <li><Link href="/login" className="hover:text-brand-400 transition-colors">Teacher Portal</Link></li>
+          <h4 className="text-white font-bold mb-4">Quick Links</h4>
+          <ul className="space-y-2 text-sm font-semibold text-white">
+            <li><Link href="#mission" className="text-white hover:text-slate-200 transition-colors">Our Mission</Link></li>
+            <li><Link href="#programs" className="text-white hover:text-slate-200 transition-colors">Programs</Link></li>
+            <li><Link href="#impact" className="text-white hover:text-slate-200 transition-colors">Impact</Link></li>
+            <li><Link href="/login" className="text-white hover:text-slate-200 transition-colors">Teacher Portal</Link></li>
           </ul>
         </div>
         
         <div>
-          <h4 className="text-white font-semibold mb-4">Contact</h4>
-          <ul className="space-y-2 text-sm">
-            <li><a href="mailto:info@bffp.org.pk" className="hover:text-brand-400 transition-colors">info@bffp.org.pk</a></li>
-            <li><a href="tel:+923012973329" className="hover:text-brand-400 transition-colors">+92 301 2973329</a></li>
-            <li>Baloch Mujahid Community Center, Korangi Creek, Karachi</li>
+          <h4 className="text-white font-bold mb-4">Contact</h4>
+          <ul className="space-y-2 text-sm font-semibold text-white">
+            <li><a href="mailto:info@bffp.org.pk" className="text-white hover:text-slate-200 transition-colors">info@bffp.org.pk</a></li>
+            <li><a href="tel:+923012973329" className="text-white hover:text-slate-200 transition-colors">+92 301 2973329</a></li>
+            <li className="text-white">Baloch Mujahid Community Center, Korangi Creek, Karachi</li>
           </ul>
         </div>
       </div>
-      <div className="container mx-auto px-4 mt-12 pt-8 border-t border-slate-800 text-sm text-slate-500 flex flex-col md:flex-row justify-between items-center">
-        <p>&copy; {new Date().getFullYear()} Better Future for Pakistan. All rights reserved.</p>
+      <div className="container mx-auto px-4 mt-12 pt-8 border-t border-slate-800 text-sm text-white font-semibold flex flex-col md:flex-row justify-between items-center">
+        <p className="text-white font-semibold">&copy; {new Date().getFullYear()} Better Future for Pakistan. All rights reserved.</p>
         <div className="space-x-4 mt-4 md:mt-0">
-          <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
-          <Link href="#" className="hover:text-white transition-colors">Terms of Service</Link>
+          <Link href="#" className="text-white hover:text-slate-200 transition-colors font-semibold">Privacy Policy</Link>
+          <Link href="#" className="text-white hover:text-slate-200 transition-colors font-semibold">Terms of Service</Link>
         </div>
       </div>
     </footer>

@@ -27,7 +27,8 @@ npm run prisma:push
 npm run db:seed
 npm run dev
 ```
-
+w=2398
+h=1792
 ## How To Check APIs
 
 Open a terminal in the project and run the dev server:

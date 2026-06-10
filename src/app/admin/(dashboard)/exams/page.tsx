@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { FileText, Plus, Edit2, Trash2, X, Settings, CheckCircle2, Circle } from "lucide-react"
-import { addExamMcq, createExam, deleteExamMcq, getAdminExams, getCourses } from "@/lib/auth"
+import { addExamMcq, createExam, deleteExam, deleteExamMcq, getAdminExams, getCourses } from "@/lib/auth"
 
 type MCQ = {
   id: string;
@@ -81,9 +81,15 @@ export default function ExamsAdminPage() {
     }
   }
 
-  const handleDeleteExam = (id: string) => {
-    if (confirm("Are you sure you want to remove this exam?")) {
-      setExams(exams.filter((e) => e.id !== id))
+  const handleDeleteExam = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this exam?")) return
+
+    try {
+      await deleteExam(id)
+      setExams((current) => current.filter((e) => e.id !== id))
+    } catch (error) {
+      console.error(error)
+      alert("Unable to delete exam. Please refresh and try again.")
     }
   }
 

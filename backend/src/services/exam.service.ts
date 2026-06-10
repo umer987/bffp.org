@@ -46,6 +46,10 @@ export async function deleteExamMcq(mcqId: string) {
   return prisma.mCQ.delete({ where: { id: mcqId } })
 }
 
+export async function deleteExam(examId: string) {
+  return prisma.exam.delete({ where: { id: examId } })
+}
+
 export async function getCourseExams(courseId: string) {
   return prisma.exam.findMany({
     where: { courseId },
@@ -65,10 +69,6 @@ export async function submitExam(input: ExamSubmitInput, authenticatedTeacherId?
     where: { examId: exam.id, teacherId },
     orderBy: { createdAt: "desc" },
   })
-
-  if (previousAttempts.some((attempt) => attempt.status === "PASSED")) {
-    throw new ApiError(409, "Exam already passed")
-  }
 
   if (previousAttempts.length >= exam.maxAttempts) {
     throw new ApiError(423, "Maximum attempts reached. Please complete the course again before reattempting.")
