@@ -73,6 +73,16 @@ export async function updateStudent(id: string, input: z.infer<typeof studentSch
 }
 
 export async function deleteStudent(id: string) {
-  await getStudent(id)
-  await prisma.student.delete({ where: { id } })
+  const student = await getStudent(id)
+  try {
+    // Delete all related attendance records first
+    await prisma.attendance.deleteMany({ where: { studentId: id } })
+    // Delete all related fee records
+    await prisma.fee.deleteMany({ where: { studentId: id } })
+    // Now delete the student
+    return await prisma.student.delete({ where: { id }, include: { class: true, section: true } })
+  } catch (error) {
+    console.error(`Error deleting student ${id}:`, error)
+    throw new ApiError(500, `Failed to delete student: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
 }

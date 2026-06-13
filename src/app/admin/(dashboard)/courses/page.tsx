@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { BookOpen, Plus, FileText, Video, Settings, X, Upload, File, Trash2 } from "lucide-react"
-import { addCourseResource, createCourse, getCourses, uploadPdf } from "@/lib/auth"
+import { addCourseResource, createCourse, deleteCourse, getCourses, updateCourse, uploadPdf } from "@/lib/auth"
 
 type Lecture = {
   id: string
@@ -27,6 +27,8 @@ export default function CoursesAdminPage() {
   const [courses, setCourses] = useState<AdminCourse[]>([])
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [newCourseTitle, setNewCourseTitle] = useState("")
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null)
+  const [editingCourseTitle, setEditingCourseTitle] = useState("")
   const [managingCourseId, setManagingCourseId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -143,6 +145,63 @@ export default function CoursesAdminPage() {
     }
   }
 
+  const handleDeleteCourse = async (courseId: string) => {
+    const confirmed = window.confirm("Delete this course? This action cannot be undone.")
+    if (!confirmed) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      await deleteCourse(courseId)
+      setCourses((current) => current.filter((course) => course.id !== courseId))
+    } catch (err) {
+      console.error(err)
+      setError("Failed to delete the course. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const startEditingCourse = (courseId: string, title: string) => {
+    setEditingCourseId(courseId)
+    setEditingCourseTitle(title)
+  }
+
+  const handleSaveCourse = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingCourseId) return
+    if (!editingCourseTitle.trim()) {
+      setError("Course title cannot be blank.")
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await updateCourse(editingCourseId, { title: editingCourseTitle.trim(), description: "" })
+      const updatedCourse = response.data
+      setCourses((current) =>
+        current.map((course) =>
+          course.id === editingCourseId
+            ? {
+                ...course,
+                title: updatedCourse.title,
+              }
+            : course,
+        ),
+      )
+      setEditingCourseId(null)
+      setEditingCourseTitle("")
+    } catch (err) {
+      console.error(err)
+      setError("Failed to update the course name. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleDeleteLecture = (courseId: string, lectureId: string) => {
     setCourses((current) => current.map((course) => {
       if (course.id === courseId) {
@@ -198,14 +257,32 @@ export default function CoursesAdminPage() {
                     }`}>
                       {course.status}
                     </span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="mt-2 text-brand-600"
-                      onClick={() => setManagingCourseId(course.id)}
-                    >
-                      <Settings className="h-4 w-4 mr-2" /> Manage Lectures
-                    </Button>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-brand-600"
+                        onClick={() => startEditingCourse(course.id, course.title)}
+                      >
+                        <Settings className="h-4 w-4 mr-2" /> Edit
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-brand-600"
+                        onClick={() => setManagingCourseId(course.id)}
+                      >
+                        <Settings className="h-4 w-4 mr-2" /> Manage Lectures
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-red-600 hover:bg-red-50"
+                        onClick={() => handleDeleteCourse(course.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" /> Delete
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -265,6 +342,42 @@ export default function CoursesAdminPage() {
             <div className="p-6 border-t border-border bg-slate-50 flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
               <Button type="submit" form="create-course-form" disabled={loading}>Create Course</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingCourseId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Edit Course Name</h2>
+                <p className="text-sm text-slate-500">Update the title for this course.</p>
+              </div>
+              <button 
+                onClick={() => setEditingCourseId(null)}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <form id="edit-course-form" onSubmit={handleSaveCourse} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Course Title</label>
+                  <Input
+                    placeholder="Course title"
+                    required
+                    value={editingCourseTitle}
+                    onChange={(e) => setEditingCourseTitle(e.target.value)}
+                  />
+                </div>
+              </form>
+            </div>
+            <div className="p-6 border-t border-border bg-slate-50 flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setEditingCourseId(null)}>Cancel</Button>
+              <Button type="submit" form="edit-course-form" disabled={loading}>Save</Button>
             </div>
           </div>
         </div>

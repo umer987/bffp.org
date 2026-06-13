@@ -1,23 +1,56 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card"
 import { Users, BookOpen, Award, TrendingUp, GraduationCap, Plus } from "lucide-react"
 import { Button } from "@/components/ui/Button"
+import { getAdminDashboard } from "@/lib/auth"
 
 export default function AdminDashboard() {
+  const [dashboard, setDashboard] = useState<any | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const response = await getAdminDashboard()
+        setDashboard(response.data)
+      } catch (err: any) {
+        setError(err?.message || "Unable to load dashboard data.")
+      }
+    }
+
+    loadDashboard()
+  }, [])
+
   const stats = [
-    { name: "Total Teachers", value: "1,245", icon: Users, change: "+12% this month" },
-    { name: "Active Courses", value: "48", icon: BookOpen, change: "+3 new" },
-    { name: "Certificates Issued", value: "8,230", icon: Award, change: "+150 this week" },
-    { name: "Avg. Pass Rate", value: "92%", icon: TrendingUp, change: "+2% this month" },
+    {
+      name: "Total Teachers",
+      value: dashboard?.stats?.teachers?.toLocaleString() ?? "—",
+      icon: Users,
+      change: "",
+    },
+    {
+      name: "Active Courses",
+      value: dashboard?.stats?.activeCourses?.toLocaleString() ?? "—",
+      icon: BookOpen,
+      change: "",
+    },
+    {
+      name: "Certificates Issued",
+      value: dashboard?.stats?.certificates?.toLocaleString() ?? "—",
+      icon: Award,
+      change: "",
+    },
+    {
+      name: "Avg. Pass Rate",
+      value: dashboard?.stats?.averagePassRate != null ? `${dashboard.stats.averagePassRate}%` : "—",
+      icon: TrendingUp,
+      change: "",
+    },
   ]
 
-  const recentTeachers = [
-    { id: "T-1042", name: "Ahmed Khan", school: "Govt High School Lahore", status: "Active" },
-    { id: "T-1043", name: "Fatima Ali", school: "Beaconhouse Islamabad", status: "In Progress" },
-    { id: "T-1044", name: "Usman Tariq", school: "City School Karachi", status: "Pending" },
-    { id: "T-1045", name: "Ayesha Malik", school: "LGS Peshawar", status: "Active" },
-  ]
+  const recentTeachers = dashboard?.recentTeachers ?? []
 
   return (
     <div className="space-y-6">
@@ -75,7 +108,7 @@ export default function AdminDashboard() {
                   <tr>
                     <th className="px-4 py-3 rounded-tl-lg">ID</th>
                     <th className="px-4 py-3">Name</th>
-                    <th className="px-4 py-3">School</th>
+                    <th className="px-4 py-3">Recent Course</th>
                     <th className="px-4 py-3 rounded-tr-lg">Status</th>
                   </tr>
                 </thead>
@@ -84,12 +117,12 @@ export default function AdminDashboard() {
                     <tr key={teacher.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3 font-medium text-slate-900">{teacher.id}</td>
                       <td className="px-4 py-3">{teacher.name}</td>
-                      <td className="px-4 py-3 text-slate-500">{teacher.school}</td>
+                      <td className="px-4 py-3 text-slate-500">{teacher.course}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                          teacher.status === 'Active' ? 'bg-emerald-100 text-emerald-700' :
-                          teacher.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
-                          'bg-blue-100 text-blue-700'
+                          teacher.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' :
+                          teacher.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                          'bg-slate-100 text-slate-700'
                         }`}>
                           {teacher.status}
                         </span>

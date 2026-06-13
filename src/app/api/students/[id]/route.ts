@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server"
-import { requireAuth } from "../../../../../backend/src/middleware/auth"
+import { requireAuth, handleApiError, noContent, ok } from "@/lib/backend"
 import { deleteStudent, getStudent, updateStudent } from "../../../../../backend/src/services/student.service"
-import { handleApiError, noContent, ok } from "../../../../../backend/src/utils/api"
 import { studentSchema } from "../../../../../backend/src/validations/schemas"
 
 export async function GET(request: NextRequest, context: RouteContext<"/api/students/[id]">) {

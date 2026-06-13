@@ -34,6 +34,10 @@ export function getMe() {
   return getJson<AuthResponse<any>>("/api/auth/me")
 }
 
+export function getAdminDashboard() {
+  return getJson<AuthResponse<any>>("/api/admin/dashboard")
+}
+
 export function getTeachers(search = "", page = 1, pageSize = 20) {
   const params = new URLSearchParams()
   if (search) params.set("search", search)
@@ -69,6 +73,19 @@ export function getCourses(search = "", page = 1, pageSize = 20) {
 
 export function createCourse(payload: any) {
   return postJson<AuthResponse<any>>("/api/courses", payload)
+}
+
+export function updateCourse(id: string, payload: any) {
+  return apiFetch<AuthResponse<any>>(`/api/courses/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteCourse(id: string) {
+  return apiFetch<void>(`/api/courses/${id}`, {
+    method: "DELETE",
+  })
 }
 
 export function uploadPdf(file: File, folder?: string) {

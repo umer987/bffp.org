@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import {
   UserPlus, ArrowLeft, Search,
-  Edit, Eye, X, Calendar, FileText, CheckCircle
+  Edit, Eye, X, Calendar, FileText, CheckCircle, Trash2
 } from "lucide-react"
 import Link from "next/link"
-import { createStudent, getStudents, updateStudent } from "@/lib/auth"
+import { createStudent, getStudents, updateStudent, deleteStudent } from "@/lib/auth"
 
 type Student = {
   id: string
@@ -41,6 +41,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
   const [monthlyFee, setMonthlyFee] = useState("4000")
   const [address, setAddress] = useState("")
   const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().slice(0, 10))
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   useEffect(() => {
     const loadStudents = async () => {
@@ -112,6 +113,18 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
       setError("Unable to save student.")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDeleteStudent = async (studentId: string) => {
+    try {
+      await deleteStudent(studentId)
+      setStudents((current) => current.filter((s) => s.id !== studentId))
+      setDeleteConfirm(null)
+      setError(null)
+    } catch (err) {
+      console.error(err)
+      setError("Failed to delete student.")
     }
   }
 
@@ -210,6 +223,9 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                       <Button onClick={() => openModal(student)} variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-brand-50 hover:text-brand-600">
                         <Edit className="h-4 w-4" />
                       </Button>
+                      <Button onClick={() => setDeleteConfirm(student.id)} variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -218,6 +234,28 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
           </table>
         </div>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md shadow-2xl overflow-hidden border-none bg-white">
+            <CardHeader className="border-b border-red-200 bg-red-50 py-4">
+              <CardTitle className="text-lg font-bold text-red-900">Delete Student</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <p className="text-slate-700">Are you sure you want to delete this student? This action cannot be undone.</p>
+              <div className="flex gap-3 justify-end">
+                <Button onClick={() => setDeleteConfirm(null)} variant="outline" className="border-slate-200 hover:bg-slate-50">
+                  Cancel
+                </Button>
+                <Button onClick={() => handleDeleteStudent(deleteConfirm)} className="bg-red-600 hover:bg-red-700 text-white">
+                  Delete Student
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Add/Edit Student Modal */}
       {isModalOpen && (
