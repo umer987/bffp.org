@@ -18,6 +18,13 @@ export function adminLogin(email: string, password: string) {
     })
 }
 
+export function changeAdminPassword(currentPassword: string, newPassword: string) {
+  return apiFetch<AuthResponse<{ success: boolean }>>("/api/auth/change-password", {
+    method: "PUT",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+}
+
 export function teacherLogin(username: string, password: string) {
   return postJson<AuthResponse<{ token: string; user: any }>>("/api/teacher/login", {
     username,

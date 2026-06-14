@@ -98,6 +98,9 @@ export default function AdminLoginPage() {
                     "Sign in"
                   )}
                 </Button>
+                <Link href="/admin/change-password" className="block text-center mt-4 text-sm text-brand-600 hover:underline">
+                  Change password
+                </Link>
               </form>
             </CardContent>
           </Card>

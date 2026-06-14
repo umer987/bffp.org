@@ -4,6 +4,7 @@ This backend runs inside the existing Next.js app through `src/app/api/**/route.
 The reusable backend logic lives in `backend/src`, and the Prisma database schema lives in `prisma/schema.prisma`.
 
 ## What Was Added
+bffp_admin123
 
 - Prisma models for Admin, Teacher, Course, Resource, Exam, MCQ, ExamAttempt, Certificate, Class, Section, Student, Attendance, Fee, and Receipt.
 - JWT auth with HTTP-only cookie support and Bearer token support.

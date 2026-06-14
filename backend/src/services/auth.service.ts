@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma"
 import { ApiError } from "../utils/api"
-import { authCookie, clearAuthCookie, comparePassword, signToken } from "../utils/auth"
+import { authCookie, clearAuthCookie, comparePassword, hashPassword, signToken } from "../utils/auth"
 
 export async function adminLogin(email: string, password: string) {
   const admin = await prisma.admin.findUnique({ where: { email } })
@@ -14,6 +14,23 @@ export async function adminLogin(email: string, password: string) {
     cookie: authCookie(token),
     user: { id: admin.id, name: admin.name, email: admin.email, role: "ADMIN" as const },
   }
+}
+
+export async function changeAdminPassword(adminId: string, currentPassword: string, newPassword: string) {
+  const admin = await prisma.admin.findUnique({ where: { id: adminId } })
+  if (!admin) {
+    throw new ApiError(404, "Admin not found")
+  }
+
+  if (!(await comparePassword(currentPassword, admin.passwordHash))) {
+    throw new ApiError(401, "Current password is incorrect")
+  }
+
+  const newHash = await hashPassword(newPassword)
+  await prisma.admin.update({
+    where: { id: adminId },
+    data: { passwordHash: newHash },
+  })
 }
 
 export async function teacherLogin(username: string, password: string) {

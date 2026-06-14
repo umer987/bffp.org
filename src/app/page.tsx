@@ -57,6 +57,11 @@ export default function LandingPage() {
                 </motion.p>
 
                 <motion.div variants={fadeIn} className="flex flex-col sm:flex-row items-center gap-4 pt-2 justify-center lg:justify-start">
+                  <Link href="/verify-certificate" className="w-full sm:w-auto">
+                    <Button size="lg" variant="secondary" className="w-full sm:w-auto text-base h-14 px-8 rounded-full shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all hover:-translate-y-0.5">
+                      Verify Certificate
+                    </Button>
+                  </Link>
                   <Link href="/login" className="w-full sm:w-auto">
                     <Button size="lg" className="w-full sm:w-auto text-base h-14 px-8 rounded-full shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all hover:-translate-y-0.5">
                       Start Learning Today <ChevronRight className="ml-2 h-5 w-5" />

@@ -16,6 +16,9 @@ export function Navbar() {
           <Link href="#programs" className="text-sm font-medium text-muted-foreground hover:text-brand-600 transition-colors">Programs</Link>
           <Link href="#impact" className="text-sm font-medium text-muted-foreground hover:text-brand-600 transition-colors">Impact</Link>
           <div className="w-px h-5 bg-border mx-2"></div>
+          <Link href="/verify-certificate">
+            <Button variant="outline" size="sm" className="mr-2">Verify Certificate</Button>
+          </Link>
           <Link href="/login">
             <Button>Teacher Login</Button>
           </Link>

@@ -16,6 +16,7 @@ type FeeRow = {
   amount: number
   month: number
   year: number
+  monthLabel?: string
   status: "PAID" | "PENDING" | "OVERDUE"
   date: string
 }
@@ -23,6 +24,12 @@ type FeeRow = {
 const currentMonth = new Date().getMonth() + 1
 const currentYear = new Date().getFullYear()
 const currentMonthName = new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date())
+
+const formatMonthYear = (month?: number, year?: number) => {
+  const validMonth = typeof month === "number" && month >= 1 && month <= 12 ? month : currentMonth
+  const validYear = typeof year === "number" && year >= 2000 ? year : currentYear
+  return `${new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date(currentYear, validMonth - 1))} ${validYear}`
+}
 
 export default function FeesPage() {
   const [fees, setFees] = useState<FeeRow[]>([])
@@ -38,7 +45,7 @@ export default function FeesPage() {
   const [selectedClass, setSelectedClass] = useState("")
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [paymentAmount, setPaymentAmount] = useState("")
-  const [paymentMonth, setPaymentMonth] = useState("May 2026")
+  const [paymentMonth, setPaymentMonth] = useState(`${currentMonthName} ${currentYear}`)
   const [savingFee, setSavingFee] = useState(false)
   const [feeError, setFeeError] = useState<string | null>(null)
 
@@ -82,8 +89,8 @@ export default function FeesPage() {
           rollNo: fee.student?.rollNumber || "-",
           className: fee.student?.class?.name || "-",
           amount: Number(fee.amount),
-          month: fee.month,
-          year: fee.year,
+          month: Number(fee.month) || currentMonth,
+          year: Number(fee.year) || currentYear,
           status: fee.status,
           date: fee.paidAt ? new Date(fee.paidAt).toISOString().split("T")[0] : "-",
         })))
@@ -126,19 +133,24 @@ export default function FeesPage() {
   const selectedClassName = classes.find((cls) => cls.id === selectedClass)?.name || ""
 
   const parseMonthYear = (monthString: string) => {
-    const [monthName, yearText] = monthString.split(" ")
+    const [monthName = "", yearText = ""] = monthString.trim().split(/\s+/)
     const monthIndex = [
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December",
     ].findIndex((name) => name.toLowerCase().startsWith(monthName.toLowerCase()))
+
+    const parsedYear = parseInt(yearText, 10)
     return {
-      month: monthIndex >= 0 ? monthIndex + 1 : 1,
-      year: parseInt(yearText, 10) || new Date().getFullYear(),
+      month: monthIndex >= 0 ? monthIndex + 1 : currentMonth,
+      year: parsedYear >= 2000 ? parsedYear : currentYear,
     }
   }
 
   const handleCollectFee = async () => {
-    if (!selectedStudent || !paymentAmount) return
+    if (!selectedStudent?.id || !paymentAmount) {
+      setFeeError("Please select a student and enter a valid amount.")
+      return
+    }
     setFeeError(null)
     setSavingFee(true)
 
@@ -160,16 +172,21 @@ export default function FeesPage() {
 
       const newPayment = {
         id: fees.length + 1,
-        student: selectedStudent.fullName,
+        studentId: selectedStudent.id,
+        studentName: selectedStudent.fullName,
         rollNo: selectedStudent.rollNumber,
-        class: selectedClassName || selectedStudent.className || selectedStudent.class || "",
+        className: selectedClassName || selectedStudent.className || "",
         amount: parseFloat(paymentAmount),
-        month: paymentMonth,
-        status: "Paid",
+        month,
+        year,
+        monthLabel: paymentMonth,
+        status: "PAID",
         date: new Date().toISOString().split('T')[0],
       }
 
-      const existingIndex = fees.findIndex(f => f.studentName === selectedStudent.fullName && `${new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date(currentYear, f.month - 1))} ${f.year}` === paymentMonth)
+      const existingIndex = fees.findIndex(
+        (f) => f.studentId === selectedStudent.id && f.month === month && f.year === year,
+      )
       if (existingIndex !== -1) {
         const updatedFees = [...fees]
         updatedFees[existingIndex] = newPayment
@@ -191,6 +208,46 @@ export default function FeesPage() {
     }
   }
 
+  const exportFeeReport = () => {
+    const rows = filteredFees.map((fee) => ({
+      "Roll No": fee.rollNo,
+      "Student Name": fee.studentName,
+      "Class": fee.className,
+      "Amount": fee.amount,
+      "Month": formatMonthYear(fee.month, fee.year),
+      "Payment Date": fee.date,
+      "Status": fee.status,
+    }))
+
+    const header = Object.keys(rows[0] || {
+      "Roll No": "",
+      "Student Name": "",
+      "Class": "",
+      "Amount": "",
+      "Month": "",
+      "Payment Date": "",
+      "Status": "",
+    })
+
+    const csv = [header.join(","),
+      ...rows.map((row) => header.map((key) => {
+        const value = row[key as keyof typeof row]
+        const escaped = String(value).replace(/"/g, '""')
+        return `"${escaped}"`
+      }).join(",")),
+    ].join("\n")
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", `fee-report-${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   const openCollectModalForStudent = (fee: any) => {
     const matchedClass = classes.find((cls) => cls.name === fee.className)
     if (matchedClass) {
@@ -199,10 +256,18 @@ export default function FeesPage() {
       setSelectedClass("")
     }
 
-    const student = classStudents.find((s) => s.rollNumber === fee.rollNo)
-    setSelectedStudent(student || { fullName: fee.studentName, rollNumber: fee.rollNo, className: fee.className })
+    const student = classStudents.find((s) => s.id === fee.studentId)
+    setSelectedStudent(
+      student || {
+        id: fee.studentId,
+        fullName: fee.studentName,
+        rollNumber: fee.rollNo,
+        className: fee.className,
+      },
+    )
     setPaymentAmount(fee.amount.toString())
-    setPaymentMonth(`${new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date(currentYear, fee.month - 1))} ${fee.year}`)
+    const monthLabel = formatMonthYear(fee.month, fee.year)
+    setPaymentMonth(monthLabel)
     setCollectModal(true)
   }
 
@@ -215,7 +280,7 @@ export default function FeesPage() {
           <p className="text-sm text-slate-500">Track collections, pending payments, and generate receipts.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="bg-white border-slate-200 text-slate-700">
+          <Button onClick={exportFeeReport} variant="outline" className="bg-white border-slate-200 text-slate-700">
             <Download className="h-4 w-4 mr-2" /> Export Report
           </Button>
           <Button onClick={() => setCollectModal(true)} className="bg-brand-600 hover:bg-brand-700 text-white">
@@ -278,7 +343,7 @@ export default function FeesPage() {
                     <div className="text-xs text-slate-500">{fee.className}</div>
                   </td>
                   <td className="px-6 py-4 font-medium">Rs. {fee.amount}</td>
-                  <td className="px-6 py-4">{new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date(currentYear, fee.month - 1))} {fee.year}</td>
+                  <td className="px-6 py-4">{formatMonthYear(fee.month, fee.year)}</td>
                   <td className="px-6 py-4">{fee.date}</td>
                   <td className="px-6 py-4">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
@@ -430,6 +495,9 @@ export default function FeesPage() {
             </div>
             
             <div className="p-6 space-y-6 bg-slate-50/50">
+              <div className="flex items-center justify-center">
+                <img src="/logo.png" alt="Logo" className="h-16 w-auto object-contain" />
+              </div>
               <div className="text-center space-y-1">
                 <div className="w-16 h-16 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-sm">
                   <CheckCircle className="h-8 w-8" />
@@ -443,7 +511,7 @@ export default function FeesPage() {
               <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-sm shadow-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Student Name</span>
-                  <span className="font-medium text-slate-900">{receiptModal.student}</span>
+                  <span className="font-medium text-slate-900">{receiptModal.studentName || receiptModal.student}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Roll Number</span>
@@ -451,11 +519,13 @@ export default function FeesPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Class</span>
-                  <span className="font-medium text-slate-900">{receiptModal.class}</span>
+                  <span className="font-medium text-slate-900">{receiptModal.className || receiptModal.class}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Fee Month</span>
-                  <span className="font-medium text-slate-900">{receiptModal.month}</span>
+                  <span className="font-medium text-slate-900">
+                    {receiptModal.monthLabel || (receiptModal.month && receiptModal.year ? `${new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date(currentYear, receiptModal.month - 1))} ${receiptModal.year}` : "")}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Payment Date</span>
